@@ -1,0 +1,41 @@
+[package]
+name = "sparkplug-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jan Sulmont"]
+description = "Idiomatic Rust bindings for Sparkplug B 2.2 protocol (wraps C++ library)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jsulmont/sparkplug-rs"
+keywords = ["sparkplug", "mqtt", "iiot", "industrial", "iot"]
+categories = ["api-bindings", "network-programming"]
+readme = "README.md"
+links = "sparkplug_c"
+
+[package.metadata]
+cpp_repo = "https://github.com/jsulmont/sparkplug-cpp"
+cpp_lib_version = "main"
+
+[dependencies]
+libc = "0.2"
+thiserror = "2.0"
+
+[build-dependencies]
+bindgen = "0.72"
+cmake = "0.1.44"
+git2 = "0.20"
+
+[dev-dependencies]
+env_logger = "0.11"
+ctrlc = "3.4"
+
+[lib]
+name = "sparkplug_rs"
+path = "src/lib.rs"
+
+[[example]]
+name = "publisher"
+path = "examples/publisher.rs"
+
+[[example]]
+name = "subscriber"
+path = "examples/subscriber.rs"
