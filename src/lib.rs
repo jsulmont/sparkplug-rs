@@ -103,10 +103,12 @@ pub mod error;
 pub mod payload;
 pub mod publisher;
 pub mod subscriber;
+pub mod topic;
 pub mod types;
 
 pub use error::{Error, Result};
 pub use payload::{Payload, PayloadBuilder};
 pub use publisher::{Publisher, PublisherConfig};
 pub use subscriber::{Message, Subscriber, SubscriberConfig};
+pub use topic::{MessageType, ParsedTopic};
 pub use types::{DataType, Metric, MetricAlias, MetricValue};

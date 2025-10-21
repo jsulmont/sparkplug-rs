@@ -3,6 +3,7 @@
 use crate::error::{Error, Result};
 use crate::payload::Payload;
 use crate::sys;
+use crate::topic::ParsedTopic;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_void;
 use std::ptr;
@@ -21,6 +22,27 @@ impl Message {
     /// Parses the payload into a structured Payload object.
     pub fn parse_payload(&self) -> Result<Payload> {
         Payload::parse(&self.payload_data)
+    }
+
+    /// Parses the MQTT topic into a structured ParsedTopic.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sparkplug_rs::{Message, MessageType};
+    ///
+    /// # fn example(msg: Message) -> Result<(), sparkplug_rs::Error> {
+    /// let topic = msg.parse_topic()?;
+    /// if let Some(msg_type) = topic.message_type() {
+    ///     if msg_type.is_birth() {
+    ///         println!("Received birth certificate from {}", topic.edge_node_id().unwrap());
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn parse_topic(&self) -> Result<ParsedTopic> {
+        ParsedTopic::parse(&self.topic)
     }
 }
 

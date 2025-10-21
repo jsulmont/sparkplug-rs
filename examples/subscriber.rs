@@ -3,7 +3,7 @@
 //! This example demonstrates the Rust API for subscribing to Sparkplug messages.
 //! It mirrors the functionality of the C subscriber example.
 
-use sparkplug_rs::{Message, Result, Subscriber, SubscriberConfig};
+use sparkplug_rs::{Message, MessageType, Result, Subscriber, SubscriberConfig};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -30,6 +30,37 @@ fn main() -> Result<()> {
         Box::new(|msg: Message| {
             println!("\n=== Message Received ===");
             println!("Topic: {}", msg.topic);
+
+            // Parse topic to get structured information
+            if let Ok(parsed) = msg.parse_topic() {
+                if let Some(msg_type) = parsed.message_type() {
+                    print!("Type: {} ", msg_type);
+                    if msg_type.is_birth() {
+                        print!("(Birth Certificate) ");
+                    } else if msg_type.is_death() {
+                        print!("(Death Certificate) ");
+                    } else if msg_type.is_data() {
+                        print!("(Data Update) ");
+                    } else if msg_type.is_command() {
+                        print!("(Command) ");
+                    }
+                    println!();
+
+                    if let Some(group) = parsed.group_id() {
+                        println!("Group: {}", group);
+                    }
+                    if let Some(node) = parsed.edge_node_id() {
+                        println!("Edge Node: {}", node);
+                    }
+                    if let Some(device) = parsed.device_id() {
+                        println!("Device: {}", device);
+                    }
+                } else if let Some(host) = parsed.host_id() {
+                    println!("Type: STATE (SCADA Host)");
+                    println!("Host: {}", host);
+                }
+            }
+
             println!("Payload size: {} bytes", msg.payload_data.len());
 
             // Parse the protobuf payload

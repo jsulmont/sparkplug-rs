@@ -71,4 +71,8 @@ pub enum Error {
     /// String contains null byte.
     #[error("String contains null byte: {0}")]
     NulError(#[from] std::ffi::NulError),
+
+    /// Invalid Sparkplug topic.
+    #[error("Invalid topic: {0}")]
+    InvalidTopic(String),
 }
