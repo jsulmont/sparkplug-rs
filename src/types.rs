@@ -2,6 +2,43 @@
 
 use crate::sys;
 
+/// A type-safe wrapper for Sparkplug metric aliases.
+///
+/// Aliases are used in birth certificates to establish a mapping between
+/// metric names and numeric identifiers for bandwidth-efficient updates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MetricAlias(pub u64);
+
+impl MetricAlias {
+    /// Creates a new metric alias.
+    pub const fn new(alias: u64) -> Self {
+        Self(alias)
+    }
+
+    /// Gets the underlying u64 value.
+    pub const fn value(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<u64> for MetricAlias {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl From<MetricAlias> for u64 {
+    fn from(alias: MetricAlias) -> Self {
+        alias.0
+    }
+}
+
+impl std::fmt::Display for MetricAlias {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// Sparkplug data types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -97,7 +134,7 @@ pub struct Metric {
     /// Metric name (if present)
     pub name: Option<String>,
     /// Metric alias (if present)
-    pub alias: Option<u64>,
+    pub alias: Option<MetricAlias>,
     /// Metric timestamp in milliseconds since Unix epoch (if present)
     pub timestamp: Option<u64>,
     /// Data type

@@ -31,12 +31,12 @@ fn main() -> Result<()> {
     // Create NBIRTH payload with metrics and aliases
     let mut birth = PayloadBuilder::new()?;
     birth
-        .add_double_with_alias("Temperature", 1, 20.5)
-        .add_double_with_alias("Voltage", 2, 230.0)
-        .add_bool_with_alias("Active", 3, true)
-        .add_int64_with_alias("Uptime", 4, 0)
-        .add_string("Properties/Hardware", "x86_64")
-        .add_string("Properties/OS", "Linux");
+        .add_double_with_alias("Temperature", 1, 20.5)?
+        .add_double_with_alias("Voltage", 2, 230.0)?
+        .add_bool_with_alias("Active", 3, true)?
+        .add_int64_with_alias("Uptime", 4, 0)?
+        .add_string("Properties/Hardware", "x86_64")?
+        .add_string("Properties/OS", "Linux")?;
 
     let birth_bytes = birth.serialize()?;
     publisher.publish_birth(&birth_bytes)?;
@@ -102,8 +102,8 @@ fn main() -> Result<()> {
 
     let mut device_birth = PayloadBuilder::new()?;
     device_birth
-        .add_double_with_alias("Sensor/Temp", 10, 22.5)
-        .add_bool_with_alias("Sensor/Online", 11, true);
+        .add_double_with_alias("Sensor/Temp", 10, 22.5)?
+        .add_bool_with_alias("Sensor/Online", 11, true)?;
 
     let device_birth_bytes = device_birth.serialize()?;
     publisher.publish_device_birth("Sensor01", &device_birth_bytes)?;

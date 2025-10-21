@@ -63,7 +63,7 @@ impl PublisherConfig {
 ///
 /// // Create and publish NBIRTH
 /// let mut birth = PayloadBuilder::new()?;
-/// birth.add_double_with_alias("Temperature", 1, 20.5);
+/// birth.add_double_with_alias("Temperature", 1, 20.5)?;
 /// let birth_bytes = birth.serialize()?;
 /// publisher.publish_birth(&birth_bytes)?;
 ///

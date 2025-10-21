@@ -2,7 +2,7 @@
 
 use crate::error::{Error, Result};
 use crate::sys;
-use crate::types::{DataType, Metric, MetricValue};
+use crate::types::{DataType, Metric, MetricAlias, MetricValue};
 use std::ffi::CStr;
 
 /// Maximum payload size for serialization.
@@ -19,8 +19,8 @@ const MAX_PAYLOAD_SIZE: usize = 65536;
 ///
 /// let mut builder = PayloadBuilder::new()?;
 /// builder
-///     .add_double_with_alias("Temperature", 1, 20.5)
-///     .add_bool_with_alias("Active", 2, true);
+///     .add_double_with_alias("Temperature", 1, 20.5)?
+///     .add_bool_with_alias("Active", 2, true)?;
 ///
 /// let bytes = builder.serialize()?;
 /// # Ok::<(), sparkplug_rs::Error>(())
@@ -58,186 +58,234 @@ impl PayloadBuilder {
         self
     }
 
+    // Note: set_timestamp and set_seq don't take string parameters, so they remain infallible
+
     // ===== Metric functions by name only =====
 
     /// Adds an int8 metric by name.
-    pub fn add_int8(&mut self, name: &str, value: i8) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_int8(&mut self, name: &str, value: i8) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_int8(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds an int16 metric by name.
-    pub fn add_int16(&mut self, name: &str, value: i16) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_int16(&mut self, name: &str, value: i16) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_int16(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds an int32 metric by name.
-    pub fn add_int32(&mut self, name: &str, value: i32) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_int32(&mut self, name: &str, value: i32) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_int32(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds an int64 metric by name.
-    pub fn add_int64(&mut self, name: &str, value: i64) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_int64(&mut self, name: &str, value: i64) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_int64(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a uint8 metric by name.
-    pub fn add_uint8(&mut self, name: &str, value: u8) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_uint8(&mut self, name: &str, value: u8) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_uint8(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a uint16 metric by name.
-    pub fn add_uint16(&mut self, name: &str, value: u16) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_uint16(&mut self, name: &str, value: u16) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_uint16(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a uint32 metric by name.
-    pub fn add_uint32(&mut self, name: &str, value: u32) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_uint32(&mut self, name: &str, value: u32) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_uint32(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a uint64 metric by name.
-    pub fn add_uint64(&mut self, name: &str, value: u64) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_uint64(&mut self, name: &str, value: u64) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_uint64(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a float metric by name.
-    pub fn add_float(&mut self, name: &str, value: f32) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_float(&mut self, name: &str, value: f32) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_float(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a double metric by name.
-    pub fn add_double(&mut self, name: &str, value: f64) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_double(&mut self, name: &str, value: f64) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_double(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a boolean metric by name.
-    pub fn add_bool(&mut self, name: &str, value: bool) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_bool(&mut self, name: &str, value: bool) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
         unsafe {
             sys::sparkplug_payload_add_bool(self.inner, c_name.as_ptr(), value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a string metric by name.
-    pub fn add_string(&mut self, name: &str, value: &str) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
-        let c_value = std::ffi::CString::new(value).unwrap();
+    ///
+    /// Returns an error if the name or value contains null bytes.
+    pub fn add_string(&mut self, name: &str, value: &str) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let c_value = std::ffi::CString::new(value)?;
         unsafe {
             sys::sparkplug_payload_add_string(self.inner, c_name.as_ptr(), c_value.as_ptr());
         }
-        self
+        Ok(self)
     }
 
     // ===== Metric functions with alias (for NBIRTH) =====
 
     /// Adds an int32 metric with both name and alias (for NBIRTH).
-    pub fn add_int32_with_alias(&mut self, name: &str, alias: u64, value: i32) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_int32_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: i32) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_int32_with_alias(self.inner, c_name.as_ptr(), alias, value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds an int64 metric with both name and alias (for NBIRTH).
-    pub fn add_int64_with_alias(&mut self, name: &str, alias: u64, value: i64) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_int64_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: i64) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_int64_with_alias(self.inner, c_name.as_ptr(), alias, value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a uint32 metric with both name and alias (for NBIRTH).
-    pub fn add_uint32_with_alias(&mut self, name: &str, alias: u64, value: u32) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_uint32_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: u32) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_uint32_with_alias(self.inner, c_name.as_ptr(), alias, value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a uint64 metric with both name and alias (for NBIRTH).
-    pub fn add_uint64_with_alias(&mut self, name: &str, alias: u64, value: u64) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_uint64_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: u64) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_uint64_with_alias(self.inner, c_name.as_ptr(), alias, value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a float metric with both name and alias (for NBIRTH).
-    pub fn add_float_with_alias(&mut self, name: &str, alias: u64, value: f32) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_float_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: f32) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_float_with_alias(self.inner, c_name.as_ptr(), alias, value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a double metric with both name and alias (for NBIRTH).
-    pub fn add_double_with_alias(&mut self, name: &str, alias: u64, value: f64) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_double_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: f64) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_double_with_alias(self.inner, c_name.as_ptr(), alias, value);
         }
-        self
+        Ok(self)
     }
 
     /// Adds a boolean metric with both name and alias (for NBIRTH).
-    pub fn add_bool_with_alias(&mut self, name: &str, alias: u64, value: bool) -> &mut Self {
-        let c_name = std::ffi::CString::new(name).unwrap();
+    ///
+    /// Returns an error if the name contains null bytes.
+    pub fn add_bool_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: bool) -> Result<&mut Self> {
+        let c_name = std::ffi::CString::new(name)?;
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_bool_with_alias(self.inner, c_name.as_ptr(), alias, value);
         }
-        self
+        Ok(self)
     }
 
     // ===== Metric functions by alias only (for NDATA) =====
 
     /// Adds an int32 metric by alias only (for NDATA).
-    pub fn add_int32_by_alias(&mut self, alias: u64, value: i32) -> &mut Self {
+    pub fn add_int32_by_alias(&mut self, alias: impl Into<MetricAlias>, value: i32) -> &mut Self {
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_int32_by_alias(self.inner, alias, value);
         }
@@ -245,7 +293,8 @@ impl PayloadBuilder {
     }
 
     /// Adds an int64 metric by alias only (for NDATA).
-    pub fn add_int64_by_alias(&mut self, alias: u64, value: i64) -> &mut Self {
+    pub fn add_int64_by_alias(&mut self, alias: impl Into<MetricAlias>, value: i64) -> &mut Self {
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_int64_by_alias(self.inner, alias, value);
         }
@@ -253,7 +302,8 @@ impl PayloadBuilder {
     }
 
     /// Adds a uint32 metric by alias only (for NDATA).
-    pub fn add_uint32_by_alias(&mut self, alias: u64, value: u32) -> &mut Self {
+    pub fn add_uint32_by_alias(&mut self, alias: impl Into<MetricAlias>, value: u32) -> &mut Self {
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_uint32_by_alias(self.inner, alias, value);
         }
@@ -261,7 +311,8 @@ impl PayloadBuilder {
     }
 
     /// Adds a uint64 metric by alias only (for NDATA).
-    pub fn add_uint64_by_alias(&mut self, alias: u64, value: u64) -> &mut Self {
+    pub fn add_uint64_by_alias(&mut self, alias: impl Into<MetricAlias>, value: u64) -> &mut Self {
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_uint64_by_alias(self.inner, alias, value);
         }
@@ -269,7 +320,8 @@ impl PayloadBuilder {
     }
 
     /// Adds a float metric by alias only (for NDATA).
-    pub fn add_float_by_alias(&mut self, alias: u64, value: f32) -> &mut Self {
+    pub fn add_float_by_alias(&mut self, alias: impl Into<MetricAlias>, value: f32) -> &mut Self {
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_float_by_alias(self.inner, alias, value);
         }
@@ -277,7 +329,8 @@ impl PayloadBuilder {
     }
 
     /// Adds a double metric by alias only (for NDATA).
-    pub fn add_double_by_alias(&mut self, alias: u64, value: f64) -> &mut Self {
+    pub fn add_double_by_alias(&mut self, alias: impl Into<MetricAlias>, value: f64) -> &mut Self {
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_double_by_alias(self.inner, alias, value);
         }
@@ -285,7 +338,8 @@ impl PayloadBuilder {
     }
 
     /// Adds a boolean metric by alias only (for NDATA).
-    pub fn add_bool_by_alias(&mut self, alias: u64, value: bool) -> &mut Self {
+    pub fn add_bool_by_alias(&mut self, alias: impl Into<MetricAlias>, value: bool) -> &mut Self {
+        let alias: u64 = alias.into().into();
         unsafe {
             sys::sparkplug_payload_add_bool_by_alias(self.inner, alias, value);
         }
@@ -411,7 +465,7 @@ impl Payload {
         };
 
         let alias = if raw_metric.has_alias {
-            Some(raw_metric.alias)
+            Some(MetricAlias::new(raw_metric.alias))
         } else {
             None
         };

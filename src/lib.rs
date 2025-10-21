@@ -40,8 +40,8 @@
 //! // Create NBIRTH with metrics and aliases
 //! let mut birth = PayloadBuilder::new()?;
 //! birth
-//!     .add_double_with_alias("Temperature", 1, 20.5)
-//!     .add_bool_with_alias("Active", 2, true);
+//!     .add_double_with_alias("Temperature", 1, 20.5)?
+//!     .add_bool_with_alias("Active", 2, true)?;
 //!
 //! let birth_bytes = birth.serialize()?;
 //! publisher.publish_birth(&birth_bytes)?;
@@ -109,4 +109,4 @@ pub use error::{Error, Result};
 pub use payload::{Payload, PayloadBuilder};
 pub use publisher::{Publisher, PublisherConfig};
 pub use subscriber::{Message, Subscriber, SubscriberConfig};
-pub use types::{DataType, Metric, MetricValue};
+pub use types::{DataType, Metric, MetricAlias, MetricValue};
