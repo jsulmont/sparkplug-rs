@@ -21,8 +21,8 @@ fn test_add_metrics_by_name() {
     assert!(builder.add_uint16("test_u16", 65535).is_ok());
     assert!(builder.add_uint32("test_u32", 4294967295).is_ok());
     assert!(builder.add_uint64("test_u64", 18446744073709551615).is_ok());
-    assert!(builder.add_float("test_f32", 3.14).is_ok());
-    assert!(builder.add_double("test_f64", 2.71828).is_ok());
+    assert!(builder.add_float("test_f32", std::f32::consts::PI).is_ok());
+    assert!(builder.add_double("test_f64", std::f64::consts::E).is_ok());
     assert!(builder.add_bool("test_bool", true).is_ok());
     assert!(builder.add_string("test_str", "hello").is_ok());
 }
@@ -58,7 +58,7 @@ fn test_builder_method_chaining() {
 
     let result = builder
         .add_int32("metric1", 100)
-        .and_then(|b| b.add_double("metric2", 3.14))
+        .and_then(|b| b.add_double("metric2", std::f64::consts::PI))
         .and_then(|b| b.add_bool("metric3", true));
 
     assert!(result.is_ok(), "Method chaining should work");
@@ -111,7 +111,7 @@ fn test_payload_round_trip() {
     builder
         .add_int32("metric1", 42)
         .unwrap()
-        .add_double("metric2", 3.14159)
+        .add_double("metric2", std::f64::consts::PI)
         .unwrap()
         .add_bool("metric3", true)
         .unwrap()

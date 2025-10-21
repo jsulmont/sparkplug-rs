@@ -5,7 +5,7 @@ use sparkplug_rs::{DataType, MetricValue};
 #[test]
 fn test_datatype_enum_values() {
     // Verify DataType enum covers all expected types
-    let types = vec![
+    let types = [
         DataType::Unknown,
         DataType::Int8,
         DataType::Int16,
@@ -29,7 +29,7 @@ fn test_datatype_enum_values() {
 #[test]
 fn test_metric_value_variants() {
     // Test MetricValue variants
-    let values = vec![
+    let values = [
         MetricValue::Int8(42),
         MetricValue::Int16(1234),
         MetricValue::Int32(123456),
@@ -38,8 +38,8 @@ fn test_metric_value_variants() {
         MetricValue::UInt16(65535),
         MetricValue::UInt32(4294967295),
         MetricValue::UInt64(18446744073709551615),
-        MetricValue::Float(3.14),
-        MetricValue::Double(2.71828),
+        MetricValue::Float(std::f32::consts::PI),
+        MetricValue::Double(std::f64::consts::E),
         MetricValue::Boolean(true),
         MetricValue::String("test".to_string()),
         MetricValue::Null,
@@ -63,7 +63,7 @@ fn test_metric_value_equality() {
 
 #[test]
 fn test_metric_value_clone() {
-    let value = MetricValue::Double(3.14);
+    let value = MetricValue::Double(std::f64::consts::PI);
     let cloned = value.clone();
     assert_eq!(value, cloned);
 
