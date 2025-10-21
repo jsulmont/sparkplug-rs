@@ -155,7 +155,10 @@ fn test_message_type_display() {
 fn test_message_type_from_str() {
     use std::str::FromStr;
 
-    assert_eq!(MessageType::from_str("NBIRTH").unwrap(), MessageType::NBirth);
+    assert_eq!(
+        MessageType::from_str("NBIRTH").unwrap(),
+        MessageType::NBirth
+    );
     assert_eq!(MessageType::from_str("DDATA").unwrap(), MessageType::DData);
     assert_eq!(MessageType::from_str("STATE").unwrap(), MessageType::State);
 

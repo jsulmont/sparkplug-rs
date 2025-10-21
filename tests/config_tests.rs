@@ -32,12 +32,7 @@ fn test_publisher_config_with_owned_strings() {
 
 #[test]
 fn test_publisher_config_clone() {
-    let config1 = PublisherConfig::new(
-        "tcp://localhost:1883",
-        "client",
-        "group",
-        "node",
-    );
+    let config1 = PublisherConfig::new("tcp://localhost:1883", "client", "group", "node");
 
     let config2 = config1.clone();
 
@@ -49,11 +44,7 @@ fn test_publisher_config_clone() {
 
 #[test]
 fn test_subscriber_config_creation() {
-    let config = SubscriberConfig::new(
-        "tcp://localhost:1883",
-        "sub_client",
-        "TestGroup",
-    );
+    let config = SubscriberConfig::new("tcp://localhost:1883", "sub_client", "TestGroup");
 
     assert_eq!(config.broker_url, "tcp://localhost:1883");
     assert_eq!(config.client_id, "sub_client");
@@ -62,11 +53,7 @@ fn test_subscriber_config_creation() {
 
 #[test]
 fn test_subscriber_config_clone() {
-    let config1 = SubscriberConfig::new(
-        "tcp://localhost:1883",
-        "client",
-        "group",
-    );
+    let config1 = SubscriberConfig::new("tcp://localhost:1883", "client", "group");
 
     let config2 = config1.clone();
 

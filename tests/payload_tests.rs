@@ -91,8 +91,10 @@ fn test_serialize_empty_payload() {
 fn test_serialize_with_metrics() {
     let mut builder = PayloadBuilder::new().unwrap();
     builder
-        .add_double("Temperature", 20.5).unwrap()
-        .add_bool("Active", true).unwrap();
+        .add_double("Temperature", 20.5)
+        .unwrap()
+        .add_bool("Active", true)
+        .unwrap();
 
     let bytes = builder.serialize();
     assert!(bytes.is_ok(), "Should serialize payload with metrics");
@@ -107,10 +109,14 @@ fn test_payload_round_trip() {
     // Build a payload
     let mut builder = PayloadBuilder::new().unwrap();
     builder
-        .add_int32("metric1", 42).unwrap()
-        .add_double("metric2", 3.14159).unwrap()
-        .add_bool("metric3", true).unwrap()
-        .add_string("metric4", "test").unwrap();
+        .add_int32("metric1", 42)
+        .unwrap()
+        .add_double("metric2", 3.14159)
+        .unwrap()
+        .add_bool("metric3", true)
+        .unwrap()
+        .add_string("metric4", "test")
+        .unwrap();
 
     let bytes = builder.serialize().unwrap();
 
@@ -144,9 +150,12 @@ fn test_payload_metric_iteration() {
 
     let mut builder = PayloadBuilder::new().unwrap();
     builder
-        .add_int32("m1", 1).unwrap()
-        .add_int32("m2", 2).unwrap()
-        .add_int32("m3", 3).unwrap();
+        .add_int32("m1", 1)
+        .unwrap()
+        .add_int32("m2", 2)
+        .unwrap()
+        .add_int32("m3", 3)
+        .unwrap();
 
     let bytes = builder.serialize().unwrap();
     let payload = Payload::parse(&bytes).unwrap();

@@ -3,7 +3,7 @@
 //! This example demonstrates the Rust API for subscribing to Sparkplug messages.
 //! It mirrors the functionality of the C subscriber example.
 
-use sparkplug_rs::{Message, MessageType, Result, Subscriber, SubscriberConfig};
+use sparkplug_rs::{Message, Result, Subscriber, SubscriberConfig};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;

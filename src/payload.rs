@@ -200,7 +200,12 @@ impl PayloadBuilder {
     /// Adds an int32 metric with both name and alias (for NBIRTH).
     ///
     /// Returns an error if the name contains null bytes.
-    pub fn add_int32_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: i32) -> Result<&mut Self> {
+    pub fn add_int32_with_alias(
+        &mut self,
+        name: &str,
+        alias: impl Into<MetricAlias>,
+        value: i32,
+    ) -> Result<&mut Self> {
         let c_name = std::ffi::CString::new(name)?;
         let alias: u64 = alias.into().into();
         unsafe {
@@ -212,7 +217,12 @@ impl PayloadBuilder {
     /// Adds an int64 metric with both name and alias (for NBIRTH).
     ///
     /// Returns an error if the name contains null bytes.
-    pub fn add_int64_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: i64) -> Result<&mut Self> {
+    pub fn add_int64_with_alias(
+        &mut self,
+        name: &str,
+        alias: impl Into<MetricAlias>,
+        value: i64,
+    ) -> Result<&mut Self> {
         let c_name = std::ffi::CString::new(name)?;
         let alias: u64 = alias.into().into();
         unsafe {
@@ -224,7 +234,12 @@ impl PayloadBuilder {
     /// Adds a uint32 metric with both name and alias (for NBIRTH).
     ///
     /// Returns an error if the name contains null bytes.
-    pub fn add_uint32_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: u32) -> Result<&mut Self> {
+    pub fn add_uint32_with_alias(
+        &mut self,
+        name: &str,
+        alias: impl Into<MetricAlias>,
+        value: u32,
+    ) -> Result<&mut Self> {
         let c_name = std::ffi::CString::new(name)?;
         let alias: u64 = alias.into().into();
         unsafe {
@@ -236,7 +251,12 @@ impl PayloadBuilder {
     /// Adds a uint64 metric with both name and alias (for NBIRTH).
     ///
     /// Returns an error if the name contains null bytes.
-    pub fn add_uint64_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: u64) -> Result<&mut Self> {
+    pub fn add_uint64_with_alias(
+        &mut self,
+        name: &str,
+        alias: impl Into<MetricAlias>,
+        value: u64,
+    ) -> Result<&mut Self> {
         let c_name = std::ffi::CString::new(name)?;
         let alias: u64 = alias.into().into();
         unsafe {
@@ -248,7 +268,12 @@ impl PayloadBuilder {
     /// Adds a float metric with both name and alias (for NBIRTH).
     ///
     /// Returns an error if the name contains null bytes.
-    pub fn add_float_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: f32) -> Result<&mut Self> {
+    pub fn add_float_with_alias(
+        &mut self,
+        name: &str,
+        alias: impl Into<MetricAlias>,
+        value: f32,
+    ) -> Result<&mut Self> {
         let c_name = std::ffi::CString::new(name)?;
         let alias: u64 = alias.into().into();
         unsafe {
@@ -260,7 +285,12 @@ impl PayloadBuilder {
     /// Adds a double metric with both name and alias (for NBIRTH).
     ///
     /// Returns an error if the name contains null bytes.
-    pub fn add_double_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: f64) -> Result<&mut Self> {
+    pub fn add_double_with_alias(
+        &mut self,
+        name: &str,
+        alias: impl Into<MetricAlias>,
+        value: f64,
+    ) -> Result<&mut Self> {
         let c_name = std::ffi::CString::new(name)?;
         let alias: u64 = alias.into().into();
         unsafe {
@@ -272,7 +302,12 @@ impl PayloadBuilder {
     /// Adds a boolean metric with both name and alias (for NBIRTH).
     ///
     /// Returns an error if the name contains null bytes.
-    pub fn add_bool_with_alias(&mut self, name: &str, alias: impl Into<MetricAlias>, value: bool) -> Result<&mut Self> {
+    pub fn add_bool_with_alias(
+        &mut self,
+        name: &str,
+        alias: impl Into<MetricAlias>,
+        value: bool,
+    ) -> Result<&mut Self> {
         let c_name = std::ffi::CString::new(name)?;
         let alias: u64 = alias.into().into();
         unsafe {
