@@ -195,13 +195,10 @@ impl TortureTestPublisher {
         let mut birth = PayloadBuilder::new()?;
 
         birth
-            .add_uint64("bdSeq", publisher.bd_seq())?
-            .add_bool("Node Control/Rebirth", false)?
-            .add_bool("Node Control/Reboot", false)?
-            .add_int64(
-                "Node Control/Scan Rate",
-                self.scan_rate_ms.load(Ordering::SeqCst),
-            )?
+            .add_bd_seq(publisher.bd_seq())?
+            .add_node_control_rebirth(false)?
+            .add_node_control_reboot(false)?
+            .add_node_control_scan_rate(self.scan_rate_ms.load(Ordering::SeqCst))?
             .add_string("Properties/Software", "Torture Test Publisher")?
             .add_string("Properties/Version", "1.0.0")?
             .add_int64("Properties/Reconnects", self.reconnect_count as i64)?

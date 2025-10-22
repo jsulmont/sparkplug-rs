@@ -381,6 +381,86 @@ impl PayloadBuilder {
         self
     }
 
+    // ===== Sparkplug Node Control Convenience Methods =====
+
+    /// Adds the "Node Control/Rebirth" metric (for NBIRTH).
+    ///
+    /// This is a convenience method for adding the rebirth control metric
+    /// that PRIMARY applications use to request a node rebirth.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sparkplug_rs::PayloadBuilder;
+    ///
+    /// let mut birth = PayloadBuilder::new()?;
+    /// birth.add_node_control_rebirth(false)?;
+    /// # Ok::<(), sparkplug_rs::Error>(())
+    /// ```
+    pub fn add_node_control_rebirth(&mut self, value: bool) -> Result<&mut Self> {
+        self.add_bool("Node Control/Rebirth", value)
+    }
+
+    /// Adds the "Node Control/Reboot" metric (for NBIRTH).
+    ///
+    /// This is a convenience method for adding the reboot control metric
+    /// that PRIMARY applications use to request a node reboot.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sparkplug_rs::PayloadBuilder;
+    ///
+    /// let mut birth = PayloadBuilder::new()?;
+    /// birth.add_node_control_reboot(false)?;
+    /// # Ok::<(), sparkplug_rs::Error>(())
+    /// ```
+    pub fn add_node_control_reboot(&mut self, value: bool) -> Result<&mut Self> {
+        self.add_bool("Node Control/Reboot", value)
+    }
+
+    /// Adds the "Node Control/Scan Rate" metric (for NBIRTH).
+    ///
+    /// This is a convenience method for adding the scan rate control metric
+    /// in milliseconds. PRIMARY applications can modify this to adjust the
+    /// node's data publishing rate.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sparkplug_rs::PayloadBuilder;
+    ///
+    /// let mut birth = PayloadBuilder::new()?;
+    /// birth.add_node_control_scan_rate(1000)?;  // 1000ms = 1 second
+    /// # Ok::<(), sparkplug_rs::Error>(())
+    /// ```
+    pub fn add_node_control_scan_rate(&mut self, value: i64) -> Result<&mut Self> {
+        self.add_int64("Node Control/Scan Rate", value)
+    }
+
+    /// Adds the "bdSeq" (birth/death sequence) metric (for NBIRTH/NDEATH).
+    ///
+    /// This is a convenience method for adding the bdSeq metric required
+    /// in NBIRTH messages. The bdSeq is used to correlate NBIRTH with NDEATH.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sparkplug_rs::{PayloadBuilder, Publisher, PublisherConfig};
+    ///
+    /// # fn example() -> Result<(), sparkplug_rs::Error> {
+    /// let config = PublisherConfig::new("tcp://localhost:1883", "client", "Group", "Node");
+    /// let publisher = Publisher::new(config)?;
+    ///
+    /// let mut birth = PayloadBuilder::new()?;
+    /// birth.add_bd_seq(publisher.bd_seq())?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn add_bd_seq(&mut self, value: u64) -> Result<&mut Self> {
+        self.add_uint64("bdSeq", value)
+    }
+
     /// Serializes the payload to binary protobuf format.
     ///
     /// Returns a vector of bytes that can be published via Publisher.

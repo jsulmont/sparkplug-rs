@@ -626,7 +626,7 @@ impl TortureTestSubscriber {
             println!("{} Sending REBIRTH command to {}", log_prefix, edge_node_id);
 
             if let Ok(mut cmd) = PayloadBuilder::new() {
-                if cmd.add_bool("Node Control/Rebirth", true).is_ok() {
+                if cmd.add_node_control_rebirth(true).is_ok() {
                     if let Ok(cmd_bytes) = cmd.serialize() {
                         if let Err(e) = publisher.publish_node_command(edge_node_id, &cmd_bytes) {
                             eprintln!("{} Failed to send rebirth command: {}", log_prefix, e);
@@ -647,7 +647,7 @@ impl TortureTestSubscriber {
             );
 
             if let Ok(mut cmd) = PayloadBuilder::new() {
-                if cmd.add_bool("Node Control/Reboot", true).is_ok() {
+                if cmd.add_node_control_reboot(true).is_ok() {
                     if let Ok(cmd_bytes) = cmd.serialize() {
                         if let Err(e) = publisher.publish_node_command(edge_node_id, &cmd_bytes) {
                             eprintln!("{} Failed to send reboot command: {}", log_prefix, e);

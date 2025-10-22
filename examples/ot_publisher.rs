@@ -1,4 +1,6 @@
-use sparkplug_rs::{Message, PayloadBuilder, Publisher, PublisherConfig, Result, Subscriber, SubscriberConfig};
+use sparkplug_rs::{
+    Message, PayloadBuilder, Publisher, PublisherConfig, Result, Subscriber, SubscriberConfig,
+};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -66,8 +68,8 @@ impl BatteryState {
         }
 
         let energy_delta_kwh = (self.power * dt_secs) / 3600.0;
-        self.soc = (self.soc - (energy_delta_kwh / self.nominal_capacity_kwh * 100.0))
-            .clamp(0.0, 100.0);
+        self.soc =
+            (self.soc - (energy_delta_kwh / self.nominal_capacity_kwh * 100.0)).clamp(0.0, 100.0);
     }
 
     fn stored_energy_kwh(&self) -> f64 {
@@ -94,12 +96,36 @@ fn publish_birth(
     group: &str,
     node: &str,
 ) -> Result<()> {
+    // Publish NBIRTH with node-level metrics
     let mut nbirth = PayloadBuilder::new()?;
-    nbirth.add_string("Properties/GroupID", group)?;
-    nbirth.add_string("Properties/NodeID", node)?;
+    nbirth
+        .add_uint64("bdSeq", publisher.bd_seq())?
+        .add_string("Properties/GroupID", group)?
+        .add_string("Properties/NodeID", node)?
+        .add_bool("Node Control/Rebirth", false)?;
     let nbirth_bytes = nbirth.serialize()?;
     publisher.publish_birth(&nbirth_bytes)?;
 
+    println!(
+        "[{}] [{}/{}] Published NBIRTH (bdSeq={}, seq={})",
+        timestamp(),
+        group,
+        node,
+        publisher.bd_seq(),
+        publisher.seq()
+    );
+
+    // Publish device births
+    publish_device_births(publisher, state, node)?;
+
+    Ok(())
+}
+
+fn publish_device_births(
+    publisher: &mut Publisher,
+    state: &BatteryState,
+    node: &str,
+) -> Result<()> {
     let mut poc_birth = PayloadBuilder::new()?;
     poc_birth
         .add_double_with_alias("DATA/POC_P_ACT", 100, state.poc_power())?
@@ -116,8 +142,16 @@ fn publish_birth(
         .add_double_with_alias("DATA/BESS_SOH_ACT", 201, 95.0)?
         .add_double_with_alias("DATA/BESS_E_ACT", 202, state.stored_energy_kwh())?
         .add_double_with_alias("DATA/BESS_E_CAP_AVAIL_ACT", 203, state.nominal_capacity_kwh)?
-        .add_double_with_alias("DATA/BESS_E_DISCHARGE_AVAIL_ACT", 204, state.discharge_avail_kwh())?
-        .add_double_with_alias("DATA/BESS_E_CHARGE_AVAIL_ACT", 205, state.charge_avail_kwh())?
+        .add_double_with_alias(
+            "DATA/BESS_E_DISCHARGE_AVAIL_ACT",
+            204,
+            state.discharge_avail_kwh(),
+        )?
+        .add_double_with_alias(
+            "DATA/BESS_E_CHARGE_AVAIL_ACT",
+            205,
+            state.charge_avail_kwh(),
+        )?
         .add_bool_with_alias("DATA/BESS_AVAIL", 206, true)?
         .add_double_with_alias("DATA/BESS_P_ACT", 207, state.power)?
         .add_double_with_alias("DATA/BESS_Q_ACT", 208, 0.0)?
@@ -141,15 +175,30 @@ fn publish_birth(
     let mut ctrl_birth = PayloadBuilder::new()?;
     ctrl_birth
         .add_bool_with_alias("DATA/BESS_P_CTRL_MODE_EN_ACT", 400, state.control_enabled)?
-        .add_double_with_alias("DATA/BESS_P_CTRL_SP_ACT", 401, state.power_setpoint.unwrap_or(0.0))?;
+        .add_double_with_alias(
+            "DATA/BESS_P_CTRL_SP_ACT",
+            401,
+            state.power_setpoint.unwrap_or(0.0),
+        )?;
     let ctrl_bytes = ctrl_birth.serialize()?;
     publisher.publish_device_birth("CONTROLLER", &ctrl_bytes)?;
 
-    println!("[{}] [{}/{}] Published birth certificates", timestamp(), group, node);
+    println!(
+        "[{}] [{}] Published DBIRTH for POC, BESS, PV, CONTROLLER (seq={})",
+        timestamp(),
+        node,
+        publisher.seq()
+    );
+
     Ok(())
 }
 
-fn publish_data(publisher: &mut Publisher, state: &BatteryState, node: &str, verbose: bool) -> Result<()> {
+fn publish_data(
+    publisher: &mut Publisher,
+    state: &BatteryState,
+    node: &str,
+    verbose: bool,
+) -> Result<()> {
     let mut poc_data = PayloadBuilder::new()?;
     poc_data.add_double_by_alias(100, state.poc_power());
     let poc_bytes = poc_data.serialize()?;
@@ -189,21 +238,12 @@ fn main() -> Result<()> {
     let bal01_state = Arc::new(Mutex::new(BatteryState::new(500.0, 250.0, 100.0)));
     let cbhs01_state = Arc::new(Mutex::new(BatteryState::new(1000.0, 500.0, 300.0)));
 
-    let bal01_config = PublisherConfig::new(
-        "tcp://localhost:1883",
-        "ot_bal01",
-        "VPP_R2",
-        "BAL01",
-    );
+    let bal01_config = PublisherConfig::new("tcp://localhost:1883", "ot_bal01", "VPP_R2", "BAL01");
     let mut bal01_pub = Publisher::new(bal01_config)?;
     bal01_pub.connect()?;
 
-    let cbhs01_config = PublisherConfig::new(
-        "tcp://localhost:1883",
-        "ot_cbhs01",
-        "VPP4S_R2",
-        "CBHS01",
-    );
+    let cbhs01_config =
+        PublisherConfig::new("tcp://localhost:1883", "ot_cbhs01", "VPP4S_R2", "CBHS01");
     let mut cbhs01_pub = Publisher::new(cbhs01_config)?;
     cbhs01_pub.connect()?;
 
@@ -216,47 +256,71 @@ fn main() -> Result<()> {
     let cbhs01_rebirth_clone = cbhs01_rebirth.clone();
 
     let cmd_config = SubscriberConfig::new("tcp://localhost:1883", "ot_cmd_listener", "VPP_R2");
-    let mut cmd_sub = Subscriber::new(cmd_config, Box::new(move |msg: Message| {
-        if let Ok(topic) = msg.parse_topic() {
-            if let Some(msg_type) = topic.message_type() {
-                if msg_type.is_command() {
-                    if let Some(node) = topic.edge_node_id() {
-                        if node == "BAL01" && msg_type.as_str() == "NCMD" {
-                            println!("[{}] [VPP_R2/BAL01] Received rebirth request", timestamp());
-                            bal01_rebirth_clone.store(true, Ordering::SeqCst);
-                        } else if node == "BAL01" && topic.device_id() == Some("CONTROLLER") {
-                            handle_device_command(&msg, &bal01_state_clone, "BAL01");
+    let mut cmd_sub = Subscriber::new(
+        cmd_config,
+        Box::new(move |msg: Message| {
+            if let Ok(topic) = msg.parse_topic() {
+                if let Some(msg_type) = topic.message_type() {
+                    if msg_type.is_command() {
+                        if let Some(node) = topic.edge_node_id() {
+                            if node == "BAL01" && msg_type.as_str() == "NCMD" {
+                                println!(
+                                    "[{}] [VPP_R2/BAL01] Received rebirth request",
+                                    timestamp()
+                                );
+                                bal01_rebirth_clone.store(true, Ordering::SeqCst);
+                            } else if node == "BAL01" && topic.device_id() == Some("CONTROLLER") {
+                                handle_device_command(&msg, &bal01_state_clone, "BAL01");
+                            }
                         }
                     }
                 }
             }
-        }
-    }))?;
+        }),
+    )?;
     cmd_sub.connect()?;
     cmd_sub.subscribe_all()?;
 
     let cmd_config2 = SubscriberConfig::new("tcp://localhost:1883", "ot_cmd_listener2", "VPP4S_R2");
-    let mut cmd_sub2 = Subscriber::new(cmd_config2, Box::new(move |msg: Message| {
-        if let Ok(topic) = msg.parse_topic() {
-            if let Some(msg_type) = topic.message_type() {
-                if msg_type.is_command() {
-                    if let Some(node) = topic.edge_node_id() {
-                        if node == "CBHS01" && msg_type.as_str() == "NCMD" {
-                            println!("[{}] [VPP4S_R2/CBHS01] Received rebirth request", timestamp());
-                            cbhs01_rebirth_clone.store(true, Ordering::SeqCst);
-                        } else if node == "CBHS01" && topic.device_id() == Some("CONTROLLER") {
-                            handle_device_command(&msg, &cbhs01_state_clone, "CBHS01");
+    let mut cmd_sub2 = Subscriber::new(
+        cmd_config2,
+        Box::new(move |msg: Message| {
+            if let Ok(topic) = msg.parse_topic() {
+                if let Some(msg_type) = topic.message_type() {
+                    if msg_type.is_command() {
+                        if let Some(node) = topic.edge_node_id() {
+                            if node == "CBHS01" && msg_type.as_str() == "NCMD" {
+                                println!(
+                                    "[{}] [VPP4S_R2/CBHS01] Received rebirth request",
+                                    timestamp()
+                                );
+                                cbhs01_rebirth_clone.store(true, Ordering::SeqCst);
+                            } else if node == "CBHS01" && topic.device_id() == Some("CONTROLLER") {
+                                handle_device_command(&msg, &cbhs01_state_clone, "CBHS01");
+                            }
                         }
                     }
                 }
             }
-        }
-    }))?;
+        }),
+    )?;
     cmd_sub2.connect()?;
     cmd_sub2.subscribe_all()?;
 
-    publish_birth(&mut bal01_pub, "BAL01", &bal01_state.lock().unwrap(), "VPP_R2", "BAL01")?;
-    publish_birth(&mut cbhs01_pub, "CBHS01", &cbhs01_state.lock().unwrap(), "VPP4S_R2", "CBHS01")?;
+    publish_birth(
+        &mut bal01_pub,
+        "BAL01",
+        &bal01_state.lock().unwrap(),
+        "VPP_R2",
+        "BAL01",
+    )?;
+    publish_birth(
+        &mut cbhs01_pub,
+        "CBHS01",
+        &cbhs01_state.lock().unwrap(),
+        "VPP4S_R2",
+        "CBHS01",
+    )?;
 
     println!("\nPublishing telemetry (Ctrl+C to stop)...\n");
 
@@ -266,13 +330,19 @@ fn main() -> Result<()> {
         counter += 1;
 
         if bal01_rebirth.swap(false, Ordering::SeqCst) {
+            // First call rebirth() to increment bdSeq and publish NBIRTH
             bal01_pub.rebirth()?;
-            publish_birth(&mut bal01_pub, "BAL01", &bal01_state.lock().unwrap(), "VPP_R2", "BAL01")?;
+            // Then publish device births (DBIRTH messages)
+            let state = bal01_state.lock().unwrap();
+            publish_device_births(&mut bal01_pub, &state, "BAL01")?;
         }
 
         if cbhs01_rebirth.swap(false, Ordering::SeqCst) {
+            // First call rebirth() to increment bdSeq and publish NBIRTH
             cbhs01_pub.rebirth()?;
-            publish_birth(&mut cbhs01_pub, "CBHS01", &cbhs01_state.lock().unwrap(), "VPP4S_R2", "CBHS01")?;
+            // Then publish device births (DBIRTH messages)
+            let state = cbhs01_state.lock().unwrap();
+            publish_device_births(&mut cbhs01_pub, &state, "CBHS01")?;
         }
 
         {
@@ -297,38 +367,72 @@ fn main() -> Result<()> {
         }
     }
 
-    println!("\nShutting down...");
+    println!("\n[{}] Shutting down...", timestamp());
+
+    // Step 1: Disconnect command subscribers FIRST to stop callbacks
+    println!("[{}] Disconnecting command subscribers...", timestamp());
     cmd_sub.disconnect()?;
     cmd_sub2.disconnect()?;
+
+    // Small delay to ensure callbacks have finished
+    thread::sleep(Duration::from_millis(100));
+
+    // Step 2: Publish NDEATH messages
+    println!("[{}] Publishing NDEATH messages...", timestamp());
+
+    if let Err(e) = bal01_pub.publish_death() {
+        eprintln!("[{}] Failed to publish NDEATH for BAL01: {}", timestamp(), e);
+    } else {
+        println!("[{}] [VPP_R2/BAL01] Published NDEATH (bdSeq={})", timestamp(), bal01_pub.bd_seq());
+    }
+
+    if let Err(e) = cbhs01_pub.publish_death() {
+        eprintln!("[{}] Failed to publish NDEATH for CBHS01: {}", timestamp(), e);
+    } else {
+        println!("[{}] [VPP4S_R2/CBHS01] Published NDEATH (bdSeq={})", timestamp(), cbhs01_pub.bd_seq());
+    }
+
+    // Step 3: Disconnect publishers
     bal01_pub.disconnect()?;
     cbhs01_pub.disconnect()?;
-    println!("Disconnected");
+
+    println!("[{}] Disconnected gracefully", timestamp());
 
     Ok(())
 }
 
 fn handle_device_command(msg: &Message, state: &Arc<Mutex<BatteryState>>, node: &str) {
     if let Ok(payload) = msg.parse_payload() {
-        let mut state = state.lock().unwrap();
-        for metric_result in payload.metrics() {
-            if let Ok(metric) = metric_result {
-                if let Some(name) = &metric.name {
-                    match name.as_str() {
-                        "CMD/BESS_P_CTRL_MODE_EN_CMD" => {
-                            if let sparkplug_rs::MetricValue::Boolean(v) = metric.value {
-                                state.control_enabled = v;
-                                println!("[{}] [{}] Control mode: {}", timestamp(), node, if v { "ENABLED" } else { "DISABLED" });
+        // Use try_lock or handle lock errors gracefully during shutdown
+        match state.lock() {
+            Ok(mut state) => {
+                for metric in payload.metrics().flatten() {
+                    if let Some(name) = &metric.name {
+                        match name.as_str() {
+                            "CMD/BESS_P_CTRL_MODE_EN_CMD" => {
+                                if let sparkplug_rs::MetricValue::Boolean(v) = metric.value {
+                                    state.control_enabled = v;
+                                    println!(
+                                        "[{}] [{}] Control mode: {}",
+                                        timestamp(),
+                                        node,
+                                        if v { "ENABLED" } else { "DISABLED" }
+                                    );
+                                }
                             }
-                        }
-                        "CMD/BESS_P_CTRL_SP" => {
-                            if let sparkplug_rs::MetricValue::Double(v) = metric.value {
-                                state.power_setpoint = Some(v);
-                                println!("[{}] [{}] Power setpoint: {:.1} kW", timestamp(), node, v);
+                            "CMD/BESS_P_CTRL_SP" => {
+                                if let sparkplug_rs::MetricValue::Double(v) = metric.value {
+                                    state.power_setpoint = Some(v);
+                                    println!("[{}] [{}] Power setpoint: {:.1} kW", timestamp(), node, v);
+                                }
                             }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
+            }
+            Err(_) => {
+                // Mutex lock failed (likely during shutdown) - silently ignore
             }
         }
     }

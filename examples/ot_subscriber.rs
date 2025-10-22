@@ -1,4 +1,7 @@
-use sparkplug_rs::{Message, MetricAlias, PayloadBuilder, Publisher, PublisherConfig, Result, Subscriber, SubscriberConfig};
+use sparkplug_rs::{
+    Message, MetricAlias, PayloadBuilder, Publisher, PublisherConfig, Result, Subscriber,
+    SubscriberConfig,
+};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -44,18 +47,25 @@ fn main() -> Result<()> {
 
     let nodes_clone = nodes.clone();
     let vpp_r2_config = SubscriberConfig::new("tcp://localhost:1883", "ot_monitor_r2", "VPP_R2");
-    let mut vpp_r2_sub = Subscriber::new(vpp_r2_config, Box::new(move |msg: Message| {
-        handle_message(&msg, &nodes_clone, "VPP_R2");
-    }))?;
+    let mut vpp_r2_sub = Subscriber::new(
+        vpp_r2_config,
+        Box::new(move |msg: Message| {
+            handle_message(&msg, &nodes_clone, "VPP_R2");
+        }),
+    )?;
     vpp_r2_sub.connect()?;
     vpp_r2_sub.subscribe_all()?;
     println!("[{}] [OK] Subscribed to VPP_R2/#", timestamp());
 
     let nodes_clone2 = nodes.clone();
-    let vpp4s_r2_config = SubscriberConfig::new("tcp://localhost:1883", "ot_monitor_4s", "VPP4S_R2");
-    let mut vpp4s_r2_sub = Subscriber::new(vpp4s_r2_config, Box::new(move |msg: Message| {
-        handle_message(&msg, &nodes_clone2, "VPP4S_R2");
-    }))?;
+    let vpp4s_r2_config =
+        SubscriberConfig::new("tcp://localhost:1883", "ot_monitor_4s", "VPP4S_R2");
+    let mut vpp4s_r2_sub = Subscriber::new(
+        vpp4s_r2_config,
+        Box::new(move |msg: Message| {
+            handle_message(&msg, &nodes_clone2, "VPP4S_R2");
+        }),
+    )?;
     vpp4s_r2_sub.connect()?;
     vpp4s_r2_sub.subscribe_all()?;
     println!("[{}] [OK] Subscribed to VPP4S_R2/#", timestamp());
@@ -69,6 +79,13 @@ fn main() -> Result<()> {
     let mut cmd_pub_r2 = Publisher::new(cmd_pub_r2_config)?;
     cmd_pub_r2.connect()?;
 
+    // Publish NBIRTH for PRIMARY application (required by Sparkplug B 2.2)
+    let mut birth_r2 = PayloadBuilder::new()?;
+    birth_r2.add_string("Host Type", "OT Monitoring Tool")?;
+    let birth_r2_bytes = birth_r2.serialize()?;
+    cmd_pub_r2.publish_birth(&birth_r2_bytes)?;
+    println!("[{}] [OK] Command publisher VPP_R2 connected", timestamp());
+
     let cmd_pub_4s_config = PublisherConfig::new(
         "tcp://localhost:1883",
         "ot_monitor_cmd_4s",
@@ -77,6 +94,13 @@ fn main() -> Result<()> {
     );
     let mut cmd_pub_4s = Publisher::new(cmd_pub_4s_config)?;
     cmd_pub_4s.connect()?;
+
+    // Publish NBIRTH for PRIMARY application (required by Sparkplug B 2.2)
+    let mut birth_4s = PayloadBuilder::new()?;
+    birth_4s.add_string("Host Type", "OT Monitoring Tool")?;
+    let birth_4s_bytes = birth_4s.serialize()?;
+    cmd_pub_4s.publish_birth(&birth_4s_bytes)?;
+    println!("[{}] [OK] Command publisher VPP4S_R2 connected", timestamp());
 
     println!("\nSending rebirth requests to known nodes...");
     send_rebirth_request(&mut cmd_pub_r2, "BAL01")?;
@@ -103,11 +127,30 @@ fn main() -> Result<()> {
     }
 
     println!("\nShutting down...");
+
+    // Disconnect subscribers first
     vpp_r2_sub.disconnect()?;
     vpp4s_r2_sub.disconnect()?;
+
+    // Publish NDEATH for PRIMARY applications and disconnect
+    println!("[{}] Publishing NDEATH for PRIMARY applications...", timestamp());
+
+    if let Err(e) = cmd_pub_r2.publish_death() {
+        eprintln!("[{}] Failed to publish NDEATH for VPP_R2/MONITOR: {}", timestamp(), e);
+    } else {
+        println!("[{}] [VPP_R2/MONITOR] Published NDEATH (bdSeq={})", timestamp(), cmd_pub_r2.bd_seq());
+    }
+
+    if let Err(e) = cmd_pub_4s.publish_death() {
+        eprintln!("[{}] Failed to publish NDEATH for VPP4S_R2/MONITOR: {}", timestamp(), e);
+    } else {
+        println!("[{}] [VPP4S_R2/MONITOR] Published NDEATH (bdSeq={})", timestamp(), cmd_pub_4s.bd_seq());
+    }
+
     cmd_pub_r2.disconnect()?;
     cmd_pub_4s.disconnect()?;
-    println!("Disconnected");
+
+    println!("[{}] Disconnected gracefully", timestamp());
 
     Ok(())
 }
@@ -140,15 +183,13 @@ fn handle_message(msg: &Message, nodes: &NodeMap, group: &str) {
                             node.last_seq = Some(seq);
                         }
 
-                        for metric_result in payload.metrics() {
-                            if let Ok(metric) = metric_result {
-                                if let Some(name) = &metric.name {
-                                    if let Some(alias) = metric.alias {
-                                        node.aliases.insert(alias, name.clone());
-                                    }
-                                    if let Some(val) = extract_double(&metric.value) {
-                                        node.metrics.insert(name.clone(), val);
-                                    }
+                        for metric in payload.metrics().flatten() {
+                            if let Some(name) = &metric.name {
+                                if let Some(alias) = metric.alias {
+                                    node.aliases.insert(alias, name.clone());
+                                }
+                                if let Some(val) = extract_double(&metric.value) {
+                                    node.metrics.insert(name.clone(), val);
                                 }
                             }
                         }
@@ -172,20 +213,18 @@ fn handle_message(msg: &Message, nodes: &NodeMap, group: &str) {
                             node.last_seq = Some(seq);
                         }
 
-                        for metric_result in payload.metrics() {
-                            if let Ok(metric) = metric_result {
-                                let metric_name = if let Some(name) = &metric.name {
-                                    Some(name.clone())
-                                } else if let Some(alias) = metric.alias {
-                                    node.aliases.get(&alias).cloned()
-                                } else {
-                                    None
-                                };
+                        for metric in payload.metrics().flatten() {
+                            let metric_name = if let Some(name) = &metric.name {
+                                Some(name.clone())
+                            } else if let Some(alias) = metric.alias {
+                                node.aliases.get(&alias).cloned()
+                            } else {
+                                None
+                            };
 
-                                if let Some(name) = metric_name {
-                                    if let Some(val) = extract_double(&metric.value) {
-                                        node.metrics.insert(name, val);
-                                    }
+                            if let Some(name) = metric_name {
+                                if let Some(val) = extract_double(&metric.value) {
+                                    node.metrics.insert(name, val);
                                 }
                             }
                         }
@@ -253,7 +292,12 @@ fn check_stale_data(nodes: &NodeMap) {
             .unwrap_or(Duration::from_secs(0));
 
         if age.as_secs() > 120 {
-            println!("[{}] [WARNING] {} data is stale ({:.0}s)", timestamp(), key, age.as_secs());
+            println!(
+                "[{}] [WARNING] {} data is stale ({:.0}s)",
+                timestamp(),
+                key,
+                age.as_secs()
+            );
         }
     }
 }
