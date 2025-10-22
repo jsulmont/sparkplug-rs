@@ -28,6 +28,7 @@ git2 = "0.20"
 env_logger = "0.11"
 ctrlc = "3.4"
 chrono = "0.4"
+rand = "0.9"
 
 [lib]
 name = "sparkplug_rs"
