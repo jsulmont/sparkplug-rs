@@ -369,30 +369,13 @@ fn main() -> Result<()> {
 
     println!("\n[{}] Shutting down...", timestamp());
 
-    // Step 1: Disconnect command subscribers FIRST to stop callbacks
-    println!("[{}] Disconnecting command subscribers...", timestamp());
+    // Disconnect subscribers first to stop callbacks
+    println!("[{}] Disconnecting subscribers...", timestamp());
     cmd_sub.disconnect()?;
     cmd_sub2.disconnect()?;
 
-    // Small delay to ensure callbacks have finished
-    thread::sleep(Duration::from_millis(100));
-
-    // Step 2: Publish NDEATH messages
-    println!("[{}] Publishing NDEATH messages...", timestamp());
-
-    if let Err(e) = bal01_pub.publish_death() {
-        eprintln!("[{}] Failed to publish NDEATH for BAL01: {}", timestamp(), e);
-    } else {
-        println!("[{}] [VPP_R2/BAL01] Published NDEATH (bdSeq={})", timestamp(), bal01_pub.bd_seq());
-    }
-
-    if let Err(e) = cbhs01_pub.publish_death() {
-        eprintln!("[{}] Failed to publish NDEATH for CBHS01: {}", timestamp(), e);
-    } else {
-        println!("[{}] [VPP4S_R2/CBHS01] Published NDEATH (bdSeq={})", timestamp(), cbhs01_pub.bd_seq());
-    }
-
-    // Step 3: Disconnect publishers
+    // Disconnect publishers - NDEATH will be sent via MQTT LWT automatically
+    println!("[{}] Disconnecting publishers...", timestamp());
     bal01_pub.disconnect()?;
     cbhs01_pub.disconnect()?;
 
@@ -423,7 +406,12 @@ fn handle_device_command(msg: &Message, state: &Arc<Mutex<BatteryState>>, node: 
                             "CMD/BESS_P_CTRL_SP" => {
                                 if let sparkplug_rs::MetricValue::Double(v) = metric.value {
                                     state.power_setpoint = Some(v);
-                                    println!("[{}] [{}] Power setpoint: {:.1} kW", timestamp(), node, v);
+                                    println!(
+                                        "[{}] [{}] Power setpoint: {:.1} kW",
+                                        timestamp(),
+                                        node,
+                                        v
+                                    );
                                 }
                             }
                             _ => {}

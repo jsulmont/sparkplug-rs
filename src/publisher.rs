@@ -319,6 +319,117 @@ impl Publisher {
         }
         Ok(())
     }
+
+    /// Publishes a STATE birth message for a Host Application.
+    ///
+    /// STATE messages are used by Host Applications (SCADA/Primary Applications) to
+    /// indicate their online status. The birth message declares the Host Application is online.
+    ///
+    /// # Arguments
+    ///
+    /// * `host_id` - Host application identifier (e.g., "SCADA01", "HostApp")
+    /// * `timestamp` - UTC milliseconds since epoch
+    ///
+    /// # Notes
+    ///
+    /// - Topic format: `STATE/<host_id>`
+    /// - Payload format: JSON `{"online": true, "timestamp": <timestamp>}`
+    /// - Published with Retain=true and QoS=1
+    /// - This is NOT a Sparkplug protobuf message - uses raw JSON payload
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sparkplug_rs::{Publisher, PublisherConfig};
+    /// use std::time::{SystemTime, UNIX_EPOCH};
+    ///
+    /// let config = PublisherConfig::new(
+    ///     "tcp://localhost:1883",
+    ///     "host_app",
+    ///     "Infrastructure",
+    ///     "unused"
+    /// );
+    ///
+    /// let mut publisher = Publisher::new(config)?;
+    /// publisher.connect()?;
+    ///
+    /// let timestamp = SystemTime::now()
+    ///     .duration_since(UNIX_EPOCH)?
+    ///     .as_millis() as u64;
+    ///
+    /// publisher.publish_state_birth("SCADA01", timestamp)?;
+    /// # Ok::<(), sparkplug_rs::Error>(())
+    /// ```
+    pub fn publish_state_birth(&mut self, host_id: &str, timestamp: u64) -> Result<()> {
+        let c_host_id = CString::new(host_id)?;
+        let ret = unsafe {
+            sys::sparkplug_publisher_publish_state_birth(self.inner, c_host_id.as_ptr(), timestamp)
+        };
+        if ret != 0 {
+            return Err(Error::PublishFailed {
+                message_type: "STATE",
+                details: format!("publish_state_birth failed for host '{}'", host_id),
+            });
+        }
+        Ok(())
+    }
+
+    /// Publishes a STATE death message for a Host Application.
+    ///
+    /// STATE messages are used by Host Applications (SCADA/Primary Applications) to
+    /// indicate their online status. The death message declares the Host Application is offline.
+    ///
+    /// # Arguments
+    ///
+    /// * `host_id` - Host application identifier (e.g., "SCADA01", "HostApp")
+    /// * `timestamp` - UTC milliseconds since epoch (must match birth timestamp)
+    ///
+    /// # Notes
+    ///
+    /// - Topic format: `STATE/<host_id>`
+    /// - Payload format: JSON `{"online": false, "timestamp": <timestamp>}`
+    /// - Published with Retain=true and QoS=1
+    /// - This is NOT a Sparkplug protobuf message - uses raw JSON payload
+    /// - Timestamp must match the birth timestamp for proper Sparkplug B 2.2 compliance
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use sparkplug_rs::{Publisher, PublisherConfig};
+    /// use std::time::{SystemTime, UNIX_EPOCH};
+    ///
+    /// let config = PublisherConfig::new(
+    ///     "tcp://localhost:1883",
+    ///     "host_app",
+    ///     "Infrastructure",
+    ///     "unused"
+    /// );
+    ///
+    /// let mut publisher = Publisher::new(config)?;
+    /// publisher.connect()?;
+    ///
+    /// let timestamp = SystemTime::now()
+    ///     .duration_since(UNIX_EPOCH)?
+    ///     .as_millis() as u64;
+    ///
+    /// publisher.publish_state_birth("SCADA01", timestamp)?;
+    /// // ... later ...
+    /// publisher.publish_state_death("SCADA01", timestamp)?;
+    /// # Ok::<(), sparkplug_rs::Error>(())
+    /// ```
+    pub fn publish_state_death(&mut self, host_id: &str, timestamp: u64) -> Result<()> {
+        let c_host_id = CString::new(host_id)?;
+        let ret = unsafe {
+            sys::sparkplug_publisher_publish_state_death(self.inner, c_host_id.as_ptr(), timestamp)
+        };
+        if ret != 0 {
+            return Err(Error::PublishFailed {
+                message_type: "STATE",
+                details: format!("publish_state_death failed for host '{}'", host_id),
+            });
+        }
+        Ok(())
+    }
 }
 
 impl Drop for Publisher {

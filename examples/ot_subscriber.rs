@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 fn timestamp() -> String {
     let now = chrono::Local::now();
@@ -19,6 +19,7 @@ struct NodeState {
     last_seq: Option<u64>,
     metrics: HashMap<String, f64>,
     aliases: HashMap<MetricAlias, String>,
+    online: bool,
 }
 
 impl NodeState {
@@ -28,6 +29,7 @@ impl NodeState {
             last_seq: None,
             metrics: HashMap::new(),
             aliases: HashMap::new(),
+            online: false,
         }
     }
 }
@@ -38,6 +40,15 @@ fn main() -> Result<()> {
     println!("OT Subscriber - Monitoring Tool");
     println!("================================\n");
 
+    // Get timestamp for STATE messages (must be consistent for birth and death)
+    let state_timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("System time before UNIX epoch")
+        .as_millis() as u64;
+
+    // Generate unique instance ID for MQTT client IDs (prevents collision when running multiple instances)
+    let instance_id = state_timestamp % 100000; // Use last 5 digits of timestamp
+
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
     ctrlc::set_handler(move || r.store(false, Ordering::SeqCst))
@@ -46,7 +57,11 @@ fn main() -> Result<()> {
     let nodes: NodeMap = Arc::new(Mutex::new(HashMap::new()));
 
     let nodes_clone = nodes.clone();
-    let vpp_r2_config = SubscriberConfig::new("tcp://localhost:1883", "ot_monitor_r2", "VPP_R2");
+    let vpp_r2_config = SubscriberConfig::new(
+        "tcp://localhost:1883",
+        format!("ot_monitor_r2_{}", instance_id),
+        "VPP_R2",
+    );
     let mut vpp_r2_sub = Subscriber::new(
         vpp_r2_config,
         Box::new(move |msg: Message| {
@@ -58,8 +73,11 @@ fn main() -> Result<()> {
     println!("[{}] [OK] Subscribed to VPP_R2/#", timestamp());
 
     let nodes_clone2 = nodes.clone();
-    let vpp4s_r2_config =
-        SubscriberConfig::new("tcp://localhost:1883", "ot_monitor_4s", "VPP4S_R2");
+    let vpp4s_r2_config = SubscriberConfig::new(
+        "tcp://localhost:1883",
+        format!("ot_monitor_4s_{}", instance_id),
+        "VPP4S_R2",
+    );
     let mut vpp4s_r2_sub = Subscriber::new(
         vpp4s_r2_config,
         Box::new(move |msg: Message| {
@@ -72,46 +90,42 @@ fn main() -> Result<()> {
 
     let cmd_pub_r2_config = PublisherConfig::new(
         "tcp://localhost:1883",
-        "ot_monitor_cmd_r2",
+        format!("ot_monitor_cmd_r2_{}", instance_id),
         "VPP_R2",
         "MONITOR",
     );
     let mut cmd_pub_r2 = Publisher::new(cmd_pub_r2_config)?;
     cmd_pub_r2.connect()?;
 
-    // Publish NBIRTH for PRIMARY application (required by Sparkplug B 2.2)
-    let mut birth_r2 = PayloadBuilder::new()?;
-    birth_r2.add_string("Host Type", "OT Monitoring Tool")?;
-    let birth_r2_bytes = birth_r2.serialize()?;
-    cmd_pub_r2.publish_birth(&birth_r2_bytes)?;
-    println!("[{}] [OK] Command publisher VPP_R2 connected", timestamp());
+    // Publish STATE birth for Host Application (Sparkplug B 2.2 spec)
+    cmd_pub_r2.publish_state_birth("MONITOR", state_timestamp)?;
+    println!(
+        "[{}] [VPP_R2] Published STATE birth for MONITOR",
+        timestamp()
+    );
 
     let cmd_pub_4s_config = PublisherConfig::new(
         "tcp://localhost:1883",
-        "ot_monitor_cmd_4s",
+        format!("ot_monitor_cmd_4s_{}", instance_id),
         "VPP4S_R2",
         "MONITOR",
     );
     let mut cmd_pub_4s = Publisher::new(cmd_pub_4s_config)?;
     cmd_pub_4s.connect()?;
 
-    // Publish NBIRTH for PRIMARY application (required by Sparkplug B 2.2)
-    let mut birth_4s = PayloadBuilder::new()?;
-    birth_4s.add_string("Host Type", "OT Monitoring Tool")?;
-    let birth_4s_bytes = birth_4s.serialize()?;
-    cmd_pub_4s.publish_birth(&birth_4s_bytes)?;
-    println!("[{}] [OK] Command publisher VPP4S_R2 connected", timestamp());
+    // Publish STATE birth for Host Application (Sparkplug B 2.2 spec)
+    cmd_pub_4s.publish_state_birth("MONITOR", state_timestamp)?;
+    println!(
+        "[{}] [VPP4S_R2] Published STATE birth for MONITOR",
+        timestamp()
+    );
 
     println!("\nSending rebirth requests to known nodes...");
     send_rebirth_request(&mut cmd_pub_r2, "BAL01")?;
     send_rebirth_request(&mut cmd_pub_4s, "CBHS01")?;
     println!("Rebirth requests sent\n");
 
-    println!("Monitoring messages (Ctrl+C to stop)");
-    println!("Commands:");
-    println!("  - Type 'r <group> <node>' to request rebirth");
-    println!("  - Type 's' to show status");
-    println!("  - Press Ctrl+C to quit\n");
+    println!("Monitoring messages (Ctrl+C to stop)\n");
 
     let mut counter = 0;
 
@@ -126,27 +140,19 @@ fn main() -> Result<()> {
         check_stale_data(&nodes);
     }
 
-    println!("\nShutting down...");
+    println!("\n[{}] Shutting down...", timestamp());
 
     // Disconnect subscribers first
+    println!("[{}] Disconnecting subscribers...", timestamp());
     vpp_r2_sub.disconnect()?;
     vpp4s_r2_sub.disconnect()?;
 
-    // Publish NDEATH for PRIMARY applications and disconnect
-    println!("[{}] Publishing NDEATH for PRIMARY applications...", timestamp());
+    // Publish STATE death for Host Applications (Sparkplug B 2.2 spec requirement)
+    println!("[{}] Publishing STATE death messages...", timestamp());
+    cmd_pub_r2.publish_state_death("MONITOR", state_timestamp)?;
+    cmd_pub_4s.publish_state_death("MONITOR", state_timestamp)?;
 
-    if let Err(e) = cmd_pub_r2.publish_death() {
-        eprintln!("[{}] Failed to publish NDEATH for VPP_R2/MONITOR: {}", timestamp(), e);
-    } else {
-        println!("[{}] [VPP_R2/MONITOR] Published NDEATH (bdSeq={})", timestamp(), cmd_pub_r2.bd_seq());
-    }
-
-    if let Err(e) = cmd_pub_4s.publish_death() {
-        eprintln!("[{}] Failed to publish NDEATH for VPP4S_R2/MONITOR: {}", timestamp(), e);
-    } else {
-        println!("[{}] [VPP4S_R2/MONITOR] Published NDEATH (bdSeq={})", timestamp(), cmd_pub_4s.bd_seq());
-    }
-
+    // Disconnect publishers
     cmd_pub_r2.disconnect()?;
     cmd_pub_4s.disconnect()?;
 
@@ -177,6 +183,7 @@ fn handle_message(msg: &Message, nodes: &NodeMap, group: &str) {
                 if msg_type.is_birth() {
                     let device = topic.device_id().unwrap_or("NODE");
                     println!("[{}] [{}] {} - BIRTH", timestamp(), key, device);
+                    node.online = true;
 
                     if let Ok(payload) = msg.parse_payload() {
                         if let Some(seq) = payload.seq() {
@@ -231,6 +238,7 @@ fn handle_message(msg: &Message, nodes: &NodeMap, group: &str) {
                     }
                 } else if msg_type.is_death() {
                     println!("[{}] [{}] NODE DEATH", timestamp(), key);
+                    node.online = false;
                 }
             }
         }
@@ -256,12 +264,19 @@ fn print_status(nodes: &NodeMap) {
 
     println!("\n[{}] === Node Status ===", timestamp());
     for (key, state) in nodes_map.iter() {
+        // Skip MONITOR nodes (they use STATE messages, not Sparkplug NBIRTH/NDATA)
+        if key.ends_with("/MONITOR") {
+            continue;
+        }
+
         let age = SystemTime::now()
             .duration_since(state.last_seen)
             .unwrap_or(Duration::from_secs(0));
 
         print!("  {}: ", key);
-        if age.as_secs() > 60 {
+        if !state.online {
+            print!("OFFLINE ({:.0}s ago) ", age.as_secs());
+        } else if age.as_secs() > 60 {
             print!("STALE ({:.0}s ago) ", age.as_secs());
         } else {
             print!("ACTIVE ");
@@ -287,6 +302,11 @@ fn print_status(nodes: &NodeMap) {
 fn check_stale_data(nodes: &NodeMap) {
     let nodes_map = nodes.lock().unwrap();
     for (key, state) in nodes_map.iter() {
+        // Skip MONITOR nodes (they use STATE messages, not Sparkplug NBIRTH/NDATA)
+        if key.ends_with("/MONITOR") {
+            continue;
+        }
+
         let age = SystemTime::now()
             .duration_since(state.last_seen)
             .unwrap_or(Duration::from_secs(0));
